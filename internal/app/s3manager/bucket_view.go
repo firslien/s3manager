@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
@@ -16,6 +19,8 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 	type objectWithIcon struct {
 		Info minio.ObjectInfo
 		Icon string
+		Name string
+		IsDirectory bool
 	}
 
 	type pageData struct {
@@ -30,8 +35,14 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 		var objs []objectWithIcon
 		doneCh := make(chan struct{})
 		defer close(doneCh)
+		
+		var prefix string
+    	values := r.URL.Query()
+    	prefix=values.Get("prefix")
+
 		opts := minio.ListObjectsOptions{
 			Recursive: listRecursive,
+			Prefix: prefix,
 		}
 		objectCh := s3.ListObjects(r.Context(), bucketName, opts)
 		for object := range objectCh {
@@ -39,7 +50,15 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 				handleHTTPError(w, fmt.Errorf("error listing objects: %w", object.Err))
 				return
 			}
-			obj := objectWithIcon{Info: object, Icon: icon(object.Key)}
+
+			obj := objectWithIcon{Info: object, Icon: icon(object.Key), Name: filepath.Base(object.Key), IsDirectory: strings.HasSuffix(object.Key,"/") }
+			
+			if obj.IsDirectory {
+				obj.Name = obj.Name + "/"
+			}
+
+			timeZone, _ := time.LoadLocation("Asia/Shanghai")
+			obj.Info.LastModified = obj.Info.LastModified.In(timeZone)
 			objs = append(objs, obj)
 		}
 		data := pageData{
@@ -60,6 +79,13 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 		}
 	}
 }
+
+// func GetUrlArg(r *http.Request, name string) string {
+//     var arg string
+//     values := r.URL.Query()
+//     arg=values.Get(name)
+//     return arg
+// }
 
 // icon returns an icon for a file type.
 func icon(fileName string) string {

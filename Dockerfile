@@ -10,6 +10,9 @@ RUN apk add --no-cache \
   ca-certificates \
   dumb-init
 COPY --from=builder --chown=s3manager:s3manager /usr/src/app/bin/s3manager ./
+RUN apk add tzdata 
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo "Asia/Shanghai" > /etc/timezone
 USER s3manager
 EXPOSE 8080
 ENTRYPOINT [ "/usr/bin/dumb-init", "--" ]
