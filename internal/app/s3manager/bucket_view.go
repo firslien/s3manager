@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	//"log"
 
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
@@ -20,11 +21,14 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 		Info minio.ObjectInfo
 		Icon string
 		Name string
+		HumanBytesSize string
 		IsDirectory bool
 	}
 
 	type pageData struct {
 		BucketName  string
+		BackPrefix  string
+		CurrentPath string
 		Objects     []objectWithIcon
 		AllowDelete bool
 	}
@@ -44,6 +48,7 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 			Recursive: listRecursive,
 			Prefix: prefix,
 		}
+
 		objectCh := s3.ListObjects(r.Context(), bucketName, opts)
 		for object := range objectCh {
 			if object.Err != nil {
@@ -51,7 +56,7 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 				return
 			}
 
-			obj := objectWithIcon{Info: object, Icon: icon(object.Key), Name: filepath.Base(object.Key), IsDirectory: strings.HasSuffix(object.Key,"/") }
+			obj := objectWithIcon{Info: object, Icon: icon(object.Key), Name: filepath.Base(object.Key), IsDirectory: strings.HasSuffix(object.Key,"/"), HumanBytesSize: HumanBytesLoaded(object.Size)}
 			
 			if obj.IsDirectory {
 				obj.Name = obj.Name + "/"
@@ -61,8 +66,11 @@ func HandleBucketView(s3 S3, templates fs.FS, allowDelete bool, listRecursive bo
 			obj.Info.LastModified = obj.Info.LastModified.In(timeZone)
 			objs = append(objs, obj)
 		}
+
 		data := pageData{
 			BucketName:  bucketName,
+			BackPrefix:  filepath.Dir(filepath.Dir(prefix)) + "/",
+			CurrentPath: filepath.Base(prefix),
 			Objects:     objs,
 			AllowDelete: allowDelete,
 		}
@@ -100,4 +108,24 @@ func icon(fileName string) string {
 	}
 
 	return "insert_drive_file"
+}
+
+func  HumanBytesLoaded(s int64) string {
+	if ( s < 1024 ){
+		return fmt.Sprintf("%d ", s)
+	}
+
+	var suffix string;
+	var b float32;
+	if s > (1 << 30) {
+		suffix = "G"
+		b = float32(s) / (1 << 30)
+	} else if s > (1 << 20) {
+		suffix = "M"
+		b = float32(s) / (1 << 20)
+	} else if s > (1 << 10) {
+		suffix = "K"
+		b = float32(s) / (1 << 10)
+	}
+	return fmt.Sprintf("%.2f %s", b, suffix)
 }

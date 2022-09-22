@@ -1,7 +1,7 @@
 {{ define "content" }}
 <nav>
-    <div class="nav-wrapper container">
-        <span href="#" class="brand-logo"><i class="material-icons">folder_open</i>{{ .BucketName }}</span>
+    <div class="nav-wrapper container" style="margin: 0 30px">
+        <span class="brand-logo"><a href="/"><i class="material-icons">folder_open</i>{{ .BucketName }}</a></span>
         {{ if not .Objects }}
         <ul class="right">
             <li>
@@ -15,19 +15,29 @@
 </nav>
 
 <div class="section">
-    <a href="/buckets" style="padding-left:25px;vertical-align:middle;">
-        <i class="material-icons" style="vertical-align: middle;">arrow_back</i> Buckets
-    </a>
+    {{ if ne .CurrentPath "." }}
+        {{ if eq .BackPrefix "./" }}
+        <a href="/buckets/{{ $.BucketName }}" style="padding-left:25px;vertical-align:middle;">
+            <i class="material-icons" style="vertical-align: middle;">arrow_back</i>
+            <span style="vertical-align: middle;"><b>{{ $.BackPrefix }}</b></span>
+        </a><span style="vertical-align: middle;"><b>{{ $.CurrentPath }}</b></span>
+        {{ else }}
+        <a href="/buckets/{{ $.BucketName }}?prefix={{ $.BackPrefix }}" style="padding-left:25px;vertical-align:middle;">
+            <i class="material-icons" style="vertical-align: middle;">arrow_back</i>
+            <span style="vertical-align: middle;"><b>{{ $.BackPrefix }}</b></span>
+        </a><span style="vertical-align: middle;"><b>{{ $.CurrentPath }}</b></span>
+        {{ end }}
+    {{ end }}
 
     {{ if .Objects }}
     <table class="striped">
         <thead>
             <tr>
                 <th style="width:75px;"></th>
-                <th>Key</th>
+                <th>FileName</th>
                 <th>Size</th>
                 <th>Last Modified</th>
-                <th style="min-width:165px;"></th>
+                <th style="min-width:100px;"></th>
             </tr>
         </thead>
 
@@ -44,7 +54,7 @@
                 </td>
                 <td>
                 {{ if not $object.IsDirectory }}
-                {{ $object.Info.Size }} bytes
+                {{ $object.HumanBytesSize }}bytes
                 {{ else }}
                 ---
                 {{ end }}
