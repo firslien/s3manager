@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/minio/minio-go/v7"
@@ -20,9 +21,10 @@ func HandleGetObject(s3 S3, forceDownload bool) http.HandlerFunc {
 			handleHTTPError(w, fmt.Errorf("error getting object: %w", err))
 			return
 		}
-
+		
+		var fileName string = filepath.Base(objectName)
 		if forceDownload {
-			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", objectName))
+			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 			w.Header().Set("Content-Type", "application/octet-stream")
 		}
 		_, err = io.Copy(w, object)
